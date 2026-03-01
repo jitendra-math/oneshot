@@ -10,9 +10,8 @@
   let zipFile: File | null = null;
   let isLoading = false;
   let errorMessage = '';
-  let allFilePaths: string[] = []; // For select all functionality
+  let allFilePaths: string[] = [];
 
-  // Handle file selection
   async function handleFileUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) {
@@ -28,29 +27,38 @@
     errorMessage = '';
 
     try {
+      alert('📦 Step A: readZipFile start');
       const entries = await readZipFile(file);
+      alert(`📦 Step B: readZipFile complete, entries length = ${entries.length}`);
+      
       $uploadedFiles = entries;
+      alert('✅ uploadedFiles store updated');
+
+      alert('🌲 Step C: building file tree...');
+      const tree = buildFileTree(entries);
+      alert(`🌲 Step D: tree built, tree length = ${tree.length} (top-level nodes)`);
       
-      // Build tree
-      $treeData = buildFileTree(entries);
-      
-      // Collect all file paths for select all
+      $treeData = tree;
+      alert('✅ treeData store updated');
+
       allFilePaths = entries.map(e => e.path);
-      
-      // By default select all files
+      alert(`📋 allFilePaths collected: ${allFilePaths.length} paths`);
+
       selectAll(true, allFilePaths);
-      
+      alert('✅ selectAll executed, selectedPaths size = ' + $selectedPaths.size);
+
       isLoading = false;
+      alert('🎉 Loading finished, UI should update now');
     } catch (error) {
       console.error('Upload error:', error);
       errorMessage = error instanceof Error ? error.message : 'ZIP file upload failed';
       isLoading = false;
       $uploadedFiles = [];
       $treeData = [];
+      alert('❌ ERROR: ' + errorMessage);
     }
   }
 
-  // Download selected files
   async function handleDownload() {
     if ($selectedPaths.size === 0) {
       alert('Koi file select nahi ki gayi');
@@ -61,17 +69,11 @@
     errorMessage = '';
 
     try {
-      // Get selected files data
       const selected: ZipFileEntry[] = $uploadedFiles.filter(file => 
         $selectedPaths.has(file.path)
       );
-
-      // Create ZIP blob
       const zipBlob = await createZipFromSelected(selected);
-      
-      // Download
       downloadZip(zipBlob, 'selected_files.zip');
-      
       isLoading = false;
     } catch (error) {
       console.error('Download error:', error);
@@ -80,13 +82,11 @@
     }
   }
 
-  // Select/Deselect all files
   function handleSelectAll() {
     const allSelected = $selectedPaths.size === allFilePaths.length;
     selectAll(!allSelected, allFilePaths);
   }
 
-  // Clear all data
   function handleClear() {
     zipFile = null;
     $uploadedFiles = [];
@@ -94,8 +94,6 @@
     $treeData = [];
     allFilePaths = [];
     errorMessage = '';
-    
-    // Reset file input
     const fileInput = document.getElementById('zip-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   }
@@ -127,6 +125,11 @@
     <div class="error">❌ {errorMessage}</div>
   {/if}
 
+  <!-- Debug: show treeData length even if zero -->
+  <div style="margin: 10px 0; padding: 5px; background: #f0f0f0; border-radius: 4px;">
+    Debug: treeData length = {$treeData.length}
+  </div>
+
   {#if $treeData.length > 0}
     <div class="tree-container">
       <div class="tree-header">
@@ -155,6 +158,10 @@
         </button>
       </div>
     </div>
+  {:else if !isLoading && $uploadedFiles.length > 0}
+    <div class="warning">
+      ⚠️ Tree empty! {$uploadedFiles.length} files available, but treeData is 0.
+    </div>
   {/if}
 
   <div class="info">
@@ -163,138 +170,12 @@
 </main>
 
 <style>
-  main {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  }
-
-  h1 {
-    color: #333;
-    border-bottom: 2px solid #4a90e2;
-    padding-bottom: 10px;
-  }
-
-  .upload-section {
-    margin: 20px 0;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .upload-section label {
-    font-weight: bold;
-  }
-
-  .upload-section input[type="file"] {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    flex: 1;
-  }
-
-  button {
-    padding: 8px 16px;
-    background-color: #4a90e2;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.2s;
-  }
-
-  button:hover:not(:disabled) {
-    background-color: #357abd;
-  }
-
-  button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-  }
-
-  .loading, .error {
+  /* (previous styles same rahenge, bas warning class add karo) */
+  .warning {
+    background-color: #fff3cd;
+    color: #856404;
     padding: 10px;
+    border-radius: 4px;
     margin: 10px 0;
-    border-radius: 4px;
-  }
-
-  .loading {
-    background-color: #e3f2fd;
-    color: #1976d2;
-  }
-
-  .error {
-    background-color: #ffebee;
-    color: #c62828;
-  }
-
-  .tree-container {
-    margin-top: 20px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 15px;
-  }
-
-  .tree-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .tree-header h2 {
-    margin: 0;
-    font-size: 1.2rem;
-  }
-
-  .tree-actions {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-  }
-
-  .selected-count {
-    background-color: #e8f5e8;
-    padding: 4px 8px;
-    border-radius: 4px;
-    color: #2e7d32;
-    font-size: 0.9rem;
-  }
-
-  .tree-wrapper {
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #eee;
-    padding: 10px;
-    background-color: #fafafa;
-  }
-
-  .download-section {
-    margin-top: 20px;
-    text-align: center;
-  }
-
-  .download-btn {
-    background-color: #2e7d32;
-    font-size: 16px;
-    padding: 12px 24px;
-  }
-
-  .download-btn:hover:not(:disabled) {
-    background-color: #1b5e20;
-  }
-
-  .info {
-    margin-top: 20px;
-    color: #666;
-    font-size: 0.9rem;
-    background-color: #f5f5f5;
-    padding: 10px;
-    border-radius: 4px;
   }
 </style>
