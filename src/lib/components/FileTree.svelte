@@ -31,8 +31,6 @@
     if (descendantPaths.length === 0) return { checked: false, indeterminate: false };
 
     let selectedCount = 0;
-    $: selectedSet = $selectedPaths; // reactive subscription
-
     descendantPaths.forEach(path => {
       if ($selectedPaths.has(path)) selectedCount++;
     });
@@ -105,11 +103,10 @@
           <span class="expand-icon" on:click={() => toggleExpand(node.path)}>
             {#if expandedFolders.has(node.path)}▼{:else}▶{/if}
           </span>
-          {@const { checked, indeterminate } = getFolderState(node)}
           <input
             type="checkbox"
-            {checked}
-            {indeterminate}
+            checked={getFolderState(node).checked}
+            indeterminate={getFolderState(node).indeterminate}
             on:change={(e) => handleFolderToggle(node, e)}
           />
           <span class="folder-name">{node.name}</span>
