@@ -11,9 +11,8 @@
   let isLoading = false;
   let errorMessage = '';
   let allFilePaths: string[] = [];
-  let treeKey = 0; // Force re-render key
+  let treeKey = 0;
 
-  // Debug: log store changes
   $: {
     console.log('uploadedFiles length:', $uploadedFiles.length);
     console.log('treeData length:', $treeData.length);
@@ -36,27 +35,35 @@
 
     try {
       const entries = await readZipFile(file);
+      alert('Step 1: entries length = ' + entries.length);
       
       $uploadedFiles = entries;
-      await tick(); // Wait for store update
+      await tick();
 
       const tree = buildFileTree(entries);
+      alert('Step 2: tree length = ' + tree.length);
       
       $treeData = tree;
-      treeKey += 1; // Force FileTree re-render
+      treeKey += 1;
       await tick();
 
       allFilePaths = entries.map(e => e.path);
+      alert('Step 3: allFilePaths length = ' + allFilePaths.length + ', first path: ' + (allFilePaths[0] || 'none'));
+      
       selectAll(true, allFilePaths);
       await tick();
-
+      
+      alert('Step 4: selectedPaths size = ' + $selectedPaths.size);
+      
       isLoading = false;
+      alert('Step 5: isLoading set to false');
     } catch (error) {
       console.error('Upload error:', error);
       errorMessage = error instanceof Error ? error.message : 'ZIP file upload failed';
       isLoading = false;
       $uploadedFiles = [];
       $treeData = [];
+      alert('ERROR: ' + errorMessage);
     }
   }
 
@@ -95,7 +102,7 @@
     $treeData = [];
     allFilePaths = [];
     errorMessage = '';
-    treeKey += 1; // Force re-render
+    treeKey += 1;
     const fileInput = document.getElementById('zip-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   }
@@ -127,7 +134,6 @@
     <div class="error">❌ {errorMessage}</div>
   {/if}
 
-  <!-- Debug info -->
   <div style="margin: 10px 0; padding: 5px; background: #f0f0f0; border-radius: 4px;">
     Debug: treeData length = {$treeData.length} | uploadedFiles length = {$uploadedFiles.length} | selectedPaths size = {$selectedPaths.size}
   </div>
