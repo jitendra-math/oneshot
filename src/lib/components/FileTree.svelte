@@ -8,7 +8,8 @@
 
   const dispatch = createEventDispatcher();
 
-  // Helper to collect all file paths under a folder
+  alert('FileTree rendered with nodes length: ' + nodes.length);
+
   function collectFilePaths(node: FileNode): string[] {
     const paths: string[] = [];
     if (node.type === 'file') {
@@ -21,7 +22,6 @@
     return paths;
   }
 
-  // Folder state: checked aur indeterminate calculate karo
   function getFolderState(node: FileNode) {
     if (!node.children || node.children.length === 0) {
       return { checked: false, indeterminate: false };
@@ -44,7 +44,6 @@
     };
   }
 
-  // Handle folder checkbox change
   function handleFolderToggle(node: FileNode, event: Event) {
     const target = event.target as HTMLInputElement;
     const checked = target.checked;
@@ -65,7 +64,6 @@
     dispatch('toggle', { path: node.path, checked });
   }
 
-  // Handle file checkbox change
   function handleFileToggle(node: FileNode, event: Event) {
     const target = event.target as HTMLInputElement;
     const checked = target.checked;
@@ -83,7 +81,6 @@
     dispatch('toggle', { path: node.path, checked });
   }
 
-  // Expand/collapse state
   let expandedFolders = new Set<string>();
   function toggleExpand(path: string) {
     if (expandedFolders.has(path)) {
@@ -91,7 +88,7 @@
     } else {
       expandedFolders.add(path);
     }
-    expandedFolders = expandedFolders; // trigger update
+    expandedFolders = expandedFolders;
   }
 </script>
 
