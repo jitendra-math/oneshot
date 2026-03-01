@@ -1,6 +1,6 @@
 <!-- src/App.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { tick } from 'svelte';
   import { uploadedFiles, selectedPaths, treeData, selectAll, type ZipFileEntry } from './lib/stores';
   import { readZipFile } from './lib/utils/zipReader';
   import { buildFileTree } from './lib/utils/treeBuilder';
@@ -11,6 +11,14 @@
   let isLoading = false;
   let errorMessage = '';
   let allFilePaths: string[] = [];
+  let treeKey = 0; // Force re-render key
+
+  // Debug: log store changes
+  $: {
+    console.log('uploadedFiles length:', $uploadedFiles.length);
+    console.log('treeData length:', $treeData.length);
+    console.log('selectedPaths size:', $selectedPaths.size);
+  }
 
   async function handleFileUpload(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -27,35 +35,28 @@
     errorMessage = '';
 
     try {
-      alert('📦 Step A: readZipFile start');
       const entries = await readZipFile(file);
-      alert(`📦 Step B: readZipFile complete, entries length = ${entries.length}`);
       
       $uploadedFiles = entries;
-      alert('✅ uploadedFiles store updated');
+      await tick(); // Wait for store update
 
-      alert('🌲 Step C: building file tree...');
       const tree = buildFileTree(entries);
-      alert(`🌲 Step D: tree built, tree length = ${tree.length} (top-level nodes)`);
       
       $treeData = tree;
-      alert('✅ treeData store updated');
+      treeKey += 1; // Force FileTree re-render
+      await tick();
 
       allFilePaths = entries.map(e => e.path);
-      alert(`📋 allFilePaths collected: ${allFilePaths.length} paths`);
-
       selectAll(true, allFilePaths);
-      alert('✅ selectAll executed, selectedPaths size = ' + $selectedPaths.size);
+      await tick();
 
       isLoading = false;
-      alert('🎉 Loading finished, UI should update now');
     } catch (error) {
       console.error('Upload error:', error);
       errorMessage = error instanceof Error ? error.message : 'ZIP file upload failed';
       isLoading = false;
       $uploadedFiles = [];
       $treeData = [];
-      alert('❌ ERROR: ' + errorMessage);
     }
   }
 
@@ -94,6 +95,7 @@
     $treeData = [];
     allFilePaths = [];
     errorMessage = '';
+    treeKey += 1; // Force re-render
     const fileInput = document.getElementById('zip-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   }
@@ -125,9 +127,9 @@
     <div class="error">❌ {errorMessage}</div>
   {/if}
 
-  <!-- Debug: show treeData length even if zero -->
+  <!-- Debug info -->
   <div style="margin: 10px 0; padding: 5px; background: #f0f0f0; border-radius: 4px;">
-    Debug: treeData length = {$treeData.length}
+    Debug: treeData length = {$treeData.length} | uploadedFiles length = {$uploadedFiles.length} | selectedPaths size = {$selectedPaths.size}
   </div>
 
   {#if $treeData.length > 0}
@@ -145,7 +147,9 @@
       </div>
       
       <div class="tree-wrapper">
-        <FileTree nodes={$treeData} />
+        {#key treeKey}
+          <FileTree nodes={$treeData} />
+        {/key}
       </div>
 
       <div class="download-section">
@@ -170,7 +174,141 @@
 </main>
 
 <style>
-  /* (previous styles same rahenge, bas warning class add karo) */
+  main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+
+  h1 {
+    color: #333;
+    border-bottom: 2px solid #4a90e2;
+    padding-bottom: 10px;
+  }
+
+  .upload-section {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .upload-section label {
+    font-weight: bold;
+  }
+
+  .upload-section input[type="file"] {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    flex: 1;
+  }
+
+  button {
+    padding: 8px 16px;
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+  }
+
+  button:hover:not(:disabled) {
+    background-color: #357abd;
+  }
+
+  button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  .loading, .error {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+  }
+
+  .loading {
+    background-color: #e3f2fd;
+    color: #1976d2;
+  }
+
+  .error {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+
+  .tree-container {
+    margin-top: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+  }
+
+  .tree-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .tree-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .tree-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+  }
+
+  .selected-count {
+    background-color: #e8f5e8;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #2e7d32;
+    font-size: 0.9rem;
+  }
+
+  .tree-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    padding: 10px;
+    background-color: #fafafa;
+  }
+
+  .download-section {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  .download-btn {
+    background-color: #2e7d32;
+    font-size: 16px;
+    padding: 12px 24px;
+  }
+
+  .download-btn:hover:not(:disabled) {
+    background-color: #1b5e20;
+  }
+
+  .info {
+    margin-top: 20px;
+    color: #666;
+    font-size: 0.9rem;
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+  }
+
   .warning {
     background-color: #fff3cd;
     color: #856404;
