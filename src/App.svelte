@@ -56,6 +56,7 @@
       alert('Step 4: selectedPaths size = ' + $selectedPaths.size);
       
       isLoading = false;
+      await tick(); // Force UI update after setting isLoading to false
       alert('Step 5: isLoading set to false');
     } catch (error) {
       console.error('Upload error:', error);
@@ -135,7 +136,7 @@
   {/if}
 
   <div style="margin: 10px 0; padding: 5px; background: #f0f0f0; border-radius: 4px;">
-    Debug: treeData length = {$treeData.length} | uploadedFiles length = {$uploadedFiles.length} | selectedPaths size = {$selectedPaths.size}
+    Debug: isLoading = {isLoading} | treeData length = {$treeData.length} | uploadedFiles length = {$uploadedFiles.length} | selectedPaths size = {$selectedPaths.size}
   </div>
 
   {#if $treeData.length > 0}
